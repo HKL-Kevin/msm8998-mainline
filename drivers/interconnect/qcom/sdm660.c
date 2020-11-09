@@ -245,10 +245,10 @@ static struct qcom_icc_node mas_ufs = {
 	.mas_rpm_id = 68,
 	.slv_rpm_id = -1,
 	.qos.ap_owned = true,
-	.qos.qos_mode = NOC_QOS_MODE_FIXED,
-	.qos.areq_prio = 1,
-	.qos.prio_level = 1,
-	.qos.qos_port = 4,
+	.qos.qos_mode = -1,
+	.qos.areq_prio = 0,
+	.qos.prio_level = 0,
+	.qos.qos_port = -1,
 	.num_links = ARRAY_SIZE(mas_ufs_links),
 	.links = mas_ufs_links,
 };
@@ -264,10 +264,10 @@ static struct qcom_icc_node mas_usb_hs = {
 	.mas_rpm_id = 42,
 	.slv_rpm_id = -1,
 	.qos.ap_owned = true,
-	.qos.qos_mode = NOC_QOS_MODE_FIXED,
-	.qos.areq_prio = 1,
-	.qos.prio_level = 1,
-	.qos.qos_port = 1,
+	.qos.qos_mode = -1,
+	.qos.areq_prio = 0,
+	.qos.prio_level = 0,
+	.qos.qos_port = -1,
 	.num_links = ARRAY_SIZE(mas_usb_hs_links),
 	.links = mas_usb_hs_links,
 };
@@ -1711,6 +1711,7 @@ static struct platform_driver sdm660_noc_driver = {
 	.driver = {
 		.name = "qnoc-sdm660",
 		.of_match_table = sdm660_noc_of_match,
+		.sync_state = icc_sync_state,
 	},
 };
 module_platform_driver(sdm660_noc_driver);
