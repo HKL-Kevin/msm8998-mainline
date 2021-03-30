@@ -1111,6 +1111,10 @@
 					opp-supported-hw = <0xFF>;
 				};
 			};
+
+			zap-shader {
+				memory-region = <&zap_shader_region>;
+			};
 		};
 
 		kgsl_smmu: iommu@5040000 {
