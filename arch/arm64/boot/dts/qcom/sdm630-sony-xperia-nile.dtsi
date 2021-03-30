@@ -259,6 +259,10 @@
 	status = "okay";
 };
 
+&pm660l_wled {
+	status = "okay";
+};
+
 &gpucc {
 	status = "okay";
 };
