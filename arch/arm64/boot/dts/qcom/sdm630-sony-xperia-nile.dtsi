@@ -261,7 +261,8 @@
 };
 
 &pm660l_lpg {
-	qcom,power-source = <1>;
+	// No idea, and optional...
+	// qcom,power-source = <1>;
 
 	status = "okay";
 
