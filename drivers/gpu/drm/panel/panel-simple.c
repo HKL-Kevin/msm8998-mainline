@@ -4210,6 +4210,7 @@ static const struct panel_desc_dsi sony_kirin_nt36672a_truly = {
 			.width = 60,
 			.height = 139,
 		},
+		.connector_type = DRM_MODE_CONNECTOR_DSI,
 	},
 	.flags = MIPI_DSI_MODE_VIDEO | MIPI_DSI_MODE_VIDEO_BURST |
 		 MIPI_DSI_CLOCK_NON_CONTINUOUS,
@@ -4240,6 +4241,7 @@ static const struct panel_desc_dsi sony_mermaid_nt36672a_tianma = {
 			.width = 65,
 			.height = 151,
 		},
+		.connector_type = DRM_MODE_CONNECTOR_DSI,
 	},
 	.flags = MIPI_DSI_MODE_VIDEO | MIPI_DSI_MODE_VIDEO_BURST |
 		 MIPI_DSI_CLOCK_NON_CONTINUOUS,
