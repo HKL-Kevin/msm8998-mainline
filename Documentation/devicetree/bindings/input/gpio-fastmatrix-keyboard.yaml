@@ -18,9 +18,18 @@ description: |
   a requirement to support full keyboard matrices on slow external GPIO I2C
   expanders, but also a great latency enhancement for faster GPIO controllers.
 
+allOf:
+  - $ref: input.yaml#
+
 properties:
+  compatible:
+    const: gpio-fastmatrix-keyboard
+
+  label:
+    description: Descriptive name of the key.
+
   linux,keymap:
-    $ref: '/schemas/types.yaml#/definitions/uint32-array'
+    $ref: /schemas/types.yaml#/definitions/uint32-array
     description: |
       An array of packed 1-cell entries containing the equivalent of row,
       column and linux key-code as specified in dt-bindings/input/input.h
@@ -50,6 +59,10 @@ properties:
     type: boolean
     description: Keep direction of inactive columns as output
 
+  col-gpios:
+    minItems: 2
+    maxItems: 20
+
   keypad,num-rows:
     $ref: /schemas/types.yaml#/definitions/uint32
     description: Number of row lines connected to the keypad controller.
@@ -57,6 +70,24 @@ properties:
   keypad,num-columns:
     $ref: /schemas/types.yaml#/definitions/uint32
     description: Number of column lines connected to the keypad controller.
+
+  pinctrl-0:
+    maxItems: 1
+
+  pinctrl-names:
+    maxItems: 1
+
+  row-gpios:
+    minItems: 2
+    maxItems: 20
+
+required:
+  - compatible
+  - row-gpios
+  - col-gpios
+  - linux,keymap
+  - keypad,num-rows
+  - keypad,num-columns
 
 additionalProperties: true
 
@@ -67,7 +98,7 @@ examples:
 
     gpio-keyboard {
         compatible = "gpio-fastmatrix-keyboard";
-        label = "Keyboard over I2C Expander"
+        label = "Keyboard over I2C Expander";
         row-gpios =
           <&gpioext0 0 (GPIO_ACTIVE_LOW | GPIO_OPEN_DRAIN)>,
           <&gpioext0 1 (GPIO_ACTIVE_LOW | GPIO_OPEN_DRAIN)>,
