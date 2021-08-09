@@ -382,8 +382,8 @@ static bool qcom_smmu500_reset_cb_nodisable(struct arm_smmu_device *smmu,
 {
 	struct qcom_smmu *qsmmu = to_qcom_smmu(smmu);
 
-	return true;
-//	return test_bit(cbndx, qsmmu->reset_cb_nodisable_mask);
+	//return true;
+	return test_bit(cbndx, qsmmu->reset_cb_nodisable_mask);
 }
 
 static const struct arm_smmu_impl qcom_smmu_impl = {
