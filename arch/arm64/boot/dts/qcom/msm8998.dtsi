@@ -2187,7 +2187,6 @@
 			 * SoC VDDMX RPM Power Domain in the Adreno driver.
 			 */
 			power-domains = <&gpucc GPU_GX_GDSC>;
-			status = "disabled";
 		};
 
 		gpucc: clock-controller@5065000 {
@@ -3175,7 +3174,7 @@
 		};
 
 		mdss: mdss@c900000 {
-			compatible = "qcom,mdss-dpu1";
+			compatible = "qcom,sdm845-mdss";
 			reg = <0x0c900000 0x1000>;
 			reg-names = "mdss";
 

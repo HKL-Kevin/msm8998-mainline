@@ -19,7 +19,7 @@
 	qcom,board-id = <8 0>;
 
 	chosen {
-		bootargs = "clk_ignore_unused";
+		bootargs = "clk_ignore_unused root=/dev/mmcblk0p1";
 	};
 
 	board_vbat: vbat-regulator {
@@ -67,8 +67,7 @@
 	touch_vddio_vreg: touch-vddio-vreg {
 		compatible = "regulator-fixed";
 		regulator-name = "touch_vddio_vreg";
-		startup-delay-us = <0>;
-		enable-active-high;
+		startup-delay-us = <10000>;
 		gpio = <&tlmm 133 GPIO_ACTIVE_HIGH>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&ts_vddio_en>;
@@ -225,6 +224,9 @@
 		pinctrl-names = "default";
 		pinctrl-0 = <&ts_int_n>;
 
+		vdd-supply = <&vreg_l28_3p0>;
+		vio-supply = <&touch_vddio_vreg>;
+
 		syna,reset-delay-ms = <220>;
 		syna,startup-delay-ms = <1000>;
 
@@ -329,6 +331,10 @@
 	vdds-supply = <&vreg_l1a_0p875>;
 };
 
+&gpucc {
+	status = "ok";
+};
+
 &ibb {
 	regulator-min-microamp = <800000>;
 	regulator-max-microamp = <800000>;
@@ -356,6 +362,14 @@
 
 &mdss {
 	status = "okay";
+};
+
+&mmcc {
+	status = "ok";
+};
+
+&mmss_smmu {
+	status = "ok";
 };
 
 &pm8005_lsid1 {

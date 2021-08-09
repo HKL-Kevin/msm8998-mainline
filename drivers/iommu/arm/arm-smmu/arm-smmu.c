@@ -1608,7 +1608,7 @@ static void arm_smmu_device_reset(struct arm_smmu_device *smmu)
 {
 	int i;
 	u32 reg;
-
+return;
 	/* clear global FSR */
 	reg = arm_smmu_gr0_read(smmu, ARM_SMMU_GR0_sGFSR);
 	arm_smmu_gr0_write(smmu, ARM_SMMU_GR0_sGFSR, reg);
