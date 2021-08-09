@@ -21,7 +21,7 @@
 	qcom,board-id = <8 0>;
 
 	chosen {
-		bootargs = "clk_ignore_unused";
+		bootargs = "clk_ignore_unused root=/dev/mmcblk0p1";
 	};
 
 	clocks {
@@ -342,6 +342,10 @@
 	vdds-supply = <&vreg_l1a_0p875>;
 };
 
+&gpucc {
+	status = "ok";
+};
+
 &ibb {
 	regulator-min-microamp = <800000>;
 	regulator-max-microamp = <800000>;
@@ -377,6 +381,14 @@
 
 &mdss {
 	status = "okay";
+};
+
+&mmcc {
+	status = "ok";
+};
+
+&mmss_smmu {
+	status = "ok";
 };
 
 &pm8005_lsid1 {

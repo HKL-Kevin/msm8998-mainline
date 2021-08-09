@@ -101,3 +101,12 @@
 	regulator-min-microvolt = <2704000>;
 	regulator-max-microvolt = <2704000>;
 };
+
+
+&pmi8998_wled {
+	status = "okay";
+
+	qcom,num-strings = <3>;
+	qcom,enabled-strings = <0 1 2>;
+};
+
