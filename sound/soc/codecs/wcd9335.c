@@ -5005,17 +5005,21 @@ static struct regmap_config wcd9335_ifc_regmap_config = {
 	.num_ranges = ARRAY_SIZE(wcd9335_ifc_ranges),
 };
 
+#define WCD9335_REGMAP_IRQ_REG(_irq, _off, _mask)		\
+	[_irq] = {						\
+		.reg_offset = (_off),				\
+		.mask = (_mask),				\
+		.type = {					\
+			.type_reg_offset = (_off),		\
+			.types_supported = IRQ_TYPE_EDGE_BOTH,	\
+			.type_reg_mask  = (_mask),		\
+		},						\
+	}
+
 static const struct regmap_irq wcd9335_codec_irqs[] = {
 	/* INTR_REG 0 */
-	[WCD9335_IRQ_SLIMBUS] = {
-		.reg_offset = 0,
-		.mask = BIT(0),
-		.type = {
-			.type_reg_offset = 0,
-			.types_supported = IRQ_TYPE_EDGE_BOTH,
-			.type_reg_mask	= BIT(0),
-		},
-	},
+	WCD9335_REGMAP_IRQ_REG(WCD9335_IRQ_SLIMBUS, 0, BIT(0)),
+	WCD9335_REGMAP_IRQ_REG(WCD9335_IRQ_SOUNDWIRE, 2, BIT(4)),
 };
 
 static const struct regmap_irq_chip wcd9335_regmap_irq1_chip = {
