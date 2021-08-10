@@ -563,8 +563,12 @@ static void a5xx_ucode_check_version(struct a5xx_gpu *a5xx_gpu,
 	 * has been patched. The actual version is in dword [3] but we only care
 	 * about the patchlevel which is the lowest nibble of dword [3]
 	 */
-	if (((buf[0] & 0xf) == 0xa) && (buf[2] & 0xf) >= 1)
+	if (((buf[0] & 0xf) == 0xa) && (buf[2] & 0xf) >= 1) {
+		pr_err("adreno HAS WHEREAMI!\n");
 		a5xx_gpu->has_whereami = true;
+	} else {
+		pr_err("adreno has no whereami support\n");
+	}
 
 	msm_gem_put_vaddr(obj);
 }
