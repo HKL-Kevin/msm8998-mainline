@@ -551,7 +551,7 @@ static int nt35950_remove(struct mipi_dsi_device *dsi)
 static const struct drm_display_mode sharp_ls055d1sx04_modes = {
 	/* TODO: Declare 2160x3840 mode when FBC/DSC will be working. */
 	.name = "1080x1920",
-	.clock = (1080 + 400 + 40 + 300) * (1920 + 12 + 2 + 10) * 60 / 1000,
+	.clock = (1080 + 400 + 40 + 300) * (1920 + 12 + 2 + 10) * 60 / 400,
 	.hdisplay = 1080,
 	.hsync_start = 1080 + 400,
 	.hsync_end = 1080 + 400 + 40,
