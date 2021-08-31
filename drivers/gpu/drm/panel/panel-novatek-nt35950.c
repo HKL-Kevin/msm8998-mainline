@@ -62,7 +62,7 @@ struct nt35950 {
 	bool prepared;
 };
 
-struct nt35950_panel_modes {
+struct nt35950_panel_mode {
 	const struct drm_display_mode mode;
 
 	bool enable_sram;
@@ -77,7 +77,7 @@ struct nt35950_panel_modes {
 struct nt35950_panel_desc {
 	const char* model_name;
 	const struct mipi_dsi_device_info dsi_info;
-	const struct nt35950_panel_modes *mode_data;
+	const struct nt35950_panel_mode *mode_data;
 
 	bool is_dual_dsi;
 	u8 num_lanes;
@@ -112,7 +112,7 @@ static void nt35950_reset(struct nt35950 *nt)
  * @nt:   Main driver structure
  * @page: Page number (0-7)
  *
- * Returns: Number of transferred bytes or negative number on error
+ * Return: Number of transferred bytes or negative number on error
  */
 static int nt35950_set_cmd2_page(struct nt35950 *nt, u8 page)
 {
@@ -134,7 +134,7 @@ static int nt35950_set_cmd2_page(struct nt35950 *nt, u8 page)
  * @nt:        Main driver structure
  * @comp_mode: Compression mode
  *
- * Returns: Number of transferred bytes or negative number on error
+ * Return: Number of transferred bytes or negative number on error
  */
 static int nt35950_set_data_compression(struct nt35950 *nt, u8 comp_mode)
 {
@@ -152,7 +152,7 @@ static int nt35950_set_data_compression(struct nt35950 *nt, u8 comp_mode)
 	}
 
 	ret = mipi_dsi_dcs_write_buffer(nt->dsi[0], cmd_data_compression,
-					 ARRAY_SIZE(cmd_data_compression));
+					ARRAY_SIZE(cmd_data_compression));
 	if (ret < 0)
 		return ret;
 
@@ -168,7 +168,7 @@ static int nt35950_set_data_compression(struct nt35950 *nt, u8 comp_mode)
 
 	/* Display Stream Compression setting, always 0x03 */
 	ret = mipi_dsi_dcs_write_buffer(nt->dsi[0], cmd_vesa_dsc_setting,
-					 ARRAY_SIZE(cmd_vesa_dsc_setting));
+					ARRAY_SIZE(cmd_vesa_dsc_setting));
 	if (ret < 0)
 		return ret;
 
@@ -181,7 +181,7 @@ static int nt35950_set_data_compression(struct nt35950 *nt, u8 comp_mode)
  * @nt:        Main driver structure
  * @scale_up:  Scale up function control
  *
- * Returns: Number of transferred bytes or negative number on error
+ * Return: Number of transferred bytes or negative number on error
  */
 static int nt35950_set_scaler(struct nt35950 *nt, u8 scale_up)
 {
@@ -196,7 +196,7 @@ static int nt35950_set_scaler(struct nt35950 *nt, u8 scale_up)
  * @nt:   Main driver structure
  * @mode: Scaler mode
  *
- * Returns: Number of transferred bytes or negative number on error
+ * Return: Number of transferred bytes or negative number on error
  */
 static int nt35950_set_scale_mode(struct nt35950 *nt, u8 mode)
 {
@@ -206,16 +206,29 @@ static int nt35950_set_scale_mode(struct nt35950 *nt, u8 mode)
 					 ARRAY_SIZE(cmd_scaler));
 }
 
-
+/*
+ * nt35950_inject_black_image - Display a completely black image
+ * @nt:   Main driver structure
+ *
+ * After IC setup, the attached panel may show random data
+ * due to driveric behavior changes (resolution, compression,
+ * scaling, etc). This function, called after parameters setup,
+ * makes the driver ic to output a completely black image to
+ * the display.
+ * It makes sense to push a black image before sending the sleep-out
+ * and display-on commands.
+ *
+ * Return: Number of transferred bytes or negative number on error
+ */
 static int nt35950_inject_black_image(struct nt35950 *nt)
 {
 	const u8 cmd0_black_img[] = { 0x6f, 0x01 };
 	const u8 cmd1_black_img[] = { 0xf3, 0x10 };
 	u8 cmd_test[] = { 0xff, 0xaa, 0x55, 0xa5, 0x80 };
-	int ret, test_sz = ARRAY_SIZE(cmd_test);
+	int ret;
 
 	/* Enable test command */
-	ret = mipi_dsi_dcs_write_buffer(nt->dsi[0], cmd_test, test_sz);
+	ret = mipi_dsi_dcs_write_buffer(nt->dsi[0], cmd_test, ARRAY_SIZE(cmd_test));
 	if (ret < 0)
 		return ret;
 
@@ -230,20 +243,20 @@ static int nt35950_inject_black_image(struct nt35950 *nt)
 		return ret;
 
 	/* Disable test command */
-	cmd_test[test_sz - 1] = 0x00;
-	return mipi_dsi_dcs_write_buffer(nt->dsi[0], cmd_test, test_sz);
+	cmd_test[ARRAY_SIZE(cmd_test) - 1] = 0x00;
+	return mipi_dsi_dcs_write_buffer(nt->dsi[0], cmd_test, ARRAY_SIZE(cmd_test));
 }
 
 /*
  * nt35950_set_dispout - Set Display Output register parameters
  * @nt:    Main driver structure
  *
- * Returns: Number of transferred bytes or negative number on error
+ * Return: Number of transferred bytes or negative number on error
  */
 static int nt35950_set_dispout(struct nt35950 *nt)
 {
 	u8 cmd_dispout[] = { MCS_PARAM_DISP_OUTPUT_CTRL, 0x00 };
-	const struct nt35950_panel_modes *mode_data = nt->desc->mode_data;
+	const struct nt35950_panel_mode *mode_data = nt->desc->mode_data;
 
 	if (mode_data[nt->cur_mode].is_video_mode)
 		cmd_dispout[1] |= MCS_DISP_OUT_VIDEO_MODE;
@@ -278,7 +291,7 @@ static int nt35950_get_current_mode(struct nt35950 *nt)
 
 static int nt35950_on(struct nt35950 *nt)
 {
-	const struct nt35950_panel_modes *mode_data = nt->desc->mode_data;
+	const struct nt35950_panel_mode *mode_data = nt->desc->mode_data;
 	struct mipi_dsi_device *dsi = nt->dsi[0];
 	struct device *dev = &dsi->dev;
 	int ret;
@@ -385,7 +398,6 @@ set_lpm:
 	return 0;
 }
 
-/* This function has to be refactored to grab stuff from panel declaration */
 static int nt35950_sharp_init_vregs(struct nt35950 *nt, struct device *dev)
 {
 	int ret;
@@ -396,27 +408,29 @@ static int nt35950_sharp_init_vregs(struct nt35950 *nt, struct device *dev)
 	nt->vregs[3].supply = "dvdd";
 	ret = devm_regulator_bulk_get(dev, ARRAY_SIZE(nt->vregs),
 				      nt->vregs);
-	if (ret < 0) {
-		dev_err(dev, "Failed to get regulators: %d\n", ret);
+	if (ret < 0)
 		return ret;
-	}
 
 	ret = regulator_is_supported_voltage(nt->vregs[0].consumer,
 					     1750000, 1950000);
 	if (!ret)
-		return ret;
+		return -EINVAL;
 	ret = regulator_is_supported_voltage(nt->vregs[1].consumer,
 					     5200000, 5900000);
 	if (!ret)
-		return ret;
+		return -EINVAL;
 	/* AVEE is negative: -5.90V to -5.20V */
 	ret = regulator_is_supported_voltage(nt->vregs[2].consumer,
 					     5200000, 5900000);
 	if (!ret)
-		return ret;
+		return -EINVAL;
 
-	return regulator_is_supported_voltage(nt->vregs[3].consumer,
+	ret = regulator_is_supported_voltage(nt->vregs[3].consumer,
 					     1300000, 1400000);
+	if (!ret)
+		return -EINVAL;
+
+	return 0;
 }
 
 static int nt35950_prepare(struct drm_panel *panel)
@@ -435,16 +449,16 @@ static int nt35950_prepare(struct drm_panel *panel)
 
 	ret = regulator_enable(nt->vregs[3].consumer);
 	if (ret)
-		return ret;
+		goto end;
 	usleep_range(15000, 18000);
 
 	ret = regulator_enable(nt->vregs[1].consumer);
 	if (ret)
-		return ret;
+		goto end;
 
 	ret = regulator_enable(nt->vregs[2].consumer);
 	if (ret)
-		return ret;
+		goto end;
 	usleep_range(12000, 13000);
 
 	nt35950_reset(nt);
@@ -452,11 +466,16 @@ static int nt35950_prepare(struct drm_panel *panel)
 	ret = nt35950_on(nt);
 	if (ret < 0) {
 		dev_err(dev, "Failed to initialize panel: %d\n", ret);
+		goto end;
+	}
+	nt->prepared = true;
+
+end:
+	if (ret < 0) {
 		regulator_bulk_disable(ARRAY_SIZE(nt->vregs), nt->vregs);
 		return ret;
 	}
 
-	nt->prepared = true;
 	return 0;
 }
 
@@ -471,7 +490,7 @@ static int nt35950_unprepare(struct drm_panel *panel)
 
 	ret = nt35950_off(nt);
 	if (ret < 0)
-		dev_err(dev, "Failed to un-initialize panel: %d\n", ret);
+		dev_err(dev, "Failed to deinitialize panel: %d\n", ret);
 
 	gpiod_set_value_cansleep(nt->reset_gpio, 0);
 	regulator_bulk_disable(ARRAY_SIZE(nt->vregs), nt->vregs);
@@ -524,17 +543,15 @@ static int nt35950_probe(struct mipi_dsi_device *dsi)
 	struct mipi_dsi_host *dsi_r_host;
 	struct nt35950 *nt;
 	const struct mipi_dsi_device_info *info;
-	int i, n = 1, ret;
+	int i, num_dsis = 1, ret;
 
 	nt = devm_kzalloc(dev, sizeof(*nt), GFP_KERNEL);
 	if (!nt)
 		return -ENOMEM;
 
 	ret = nt35950_sharp_init_vregs(nt, dev);
-	if (ret <= 0 && ret != -EPROBE_DEFER) {
-		dev_err(dev, "Regulator init failure.\n");
-		return ret;
-	}
+	if (ret)
+		return dev_err_probe(dev, ret, "Regulator init failure.\n");
 
 	nt->desc = of_device_get_match_data(dev);
 	if (!nt->desc)
@@ -542,9 +559,8 @@ static int nt35950_probe(struct mipi_dsi_device *dsi)
 
 	nt->reset_gpio = devm_gpiod_get(dev, "reset", GPIOD_ASIS);
 	if (IS_ERR(nt->reset_gpio)) {
-		ret = PTR_ERR(nt->reset_gpio);
-		dev_err(dev, "Failed to get reset-gpios: %d\n", ret);
-		return ret;
+		return dev_err_probe(dev, PTR_ERR(nt->reset_gpio),
+				     "Failed to get reset gpio\n");
 	}
 
 	/* If the panel is connected on two DSIs then DSI0 left, DSI1 right */
@@ -567,7 +583,7 @@ static int nt35950_probe(struct mipi_dsi_device *dsi)
 			dev_err(dev, "Cannot get secondary DSI node\n");
 			return -ENODEV;
 		}
-		n++;
+		num_dsis++;
 	}
 
 	nt->dsi[0] = dsi;
@@ -582,7 +598,7 @@ static int nt35950_probe(struct mipi_dsi_device *dsi)
 
 	drm_panel_add(&nt->panel);
 
-	for (i = 0; i < n; i++) {
+	for (i = 0; i < num_dsis; i++) {
 		nt->dsi[i]->lanes = nt->desc->num_lanes;
 		nt->dsi[i]->format = MIPI_DSI_FMT_RGB888;
 
@@ -595,13 +611,12 @@ static int nt35950_probe(struct mipi_dsi_device *dsi)
 
 		ret = mipi_dsi_attach(nt->dsi[i]);
 		if (ret < 0) {
-			dev_err(dev, "Failed to attach to DSI%d host: %d\n",
-				i, ret);
-			return ret;
+			return dev_err_probe(dev, ret,
+					     "Cannot attach to DSI%d host.\n", i);
 		}
 	}
 
-	/* Make sure that before the power sequence starts RESX is LOW */
+	/* Make sure to set RESX LOW before starting the power-on sequence */
 	gpiod_set_value_cansleep(nt->reset_gpio, 0);
 	return 0;
 }
@@ -629,7 +644,7 @@ static int nt35950_remove(struct mipi_dsi_device *dsi)
 	return 0;
 }
 
-static const struct nt35950_panel_modes sharp_ls055d1sx04_modes[] = {
+static const struct nt35950_panel_mode sharp_ls055d1sx04_modes[] = {
 	{
 		/* 1920x1080 60Hz no compression */
 		.mode = {
@@ -669,12 +684,8 @@ const struct nt35950_panel_desc sharp_ls055d1sx04 = {
 };
 
 static const struct of_device_id nt35950_of_match[] = {
-	{
-		.compatible = "sharp,ls055d1sx04",
-		.data = &sharp_ls055d1sx04,
-	},
-
-	{ /* sentinel */ }
+	{ .compatible = "sharp,ls055d1sx04", .data = &sharp_ls055d1sx04 },
+	{  }
 };
 MODULE_DEVICE_TABLE(of, nt35950_of_match);
 
