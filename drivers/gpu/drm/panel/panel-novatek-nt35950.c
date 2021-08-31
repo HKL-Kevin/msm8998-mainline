@@ -2,7 +2,7 @@
 /*
  * Novatek NT35950 DriverIC panels driver
  *
- * Copyright (c) 2020 AngeloGioacchino Del Regno
+ * Copyright (c) 2021 AngeloGioacchino Del Regno
  *                    <angelogioacchino.delregno@somainline.org>
  */
 #include <linux/delay.h>
@@ -12,47 +12,76 @@
 #include <linux/of_graph.h>
 #include <linux/regulator/consumer.h>
 
+#include <drm/drm_connector.h>
+#include <drm/drm_crtc.h>
 #include <drm/drm_mipi_dsi.h>
 #include <drm/drm_modes.h>
 #include <drm/drm_panel.h>
 
-#define MCS_CMD_MAUCCTR			0xF0 /* Manufacturer command enable */
-#define MCS_PARAM_SCALER_FUNCTION	0x58
+#define MCS_CMD_MAUCCTR			0xf0 /* Manufacturer command enable */
+#define MCS_PARAM_SCALER_FUNCTION	0x58 /* Scale-up function */
+#define MCS_PARAM_SCALEUP_MODE		0xc9
+ #define MCS_SCALEUP_SIMPLE		0x0
+ #define MCS_SCALEUP_BILINEAR		BIT(0)
+ #define MCS_SCALEUP_DUPLICATE		BIT(0) | BIT(4)
 
+/* VESA Display Stream Compression param */
+#define MCS_PARAM_VESA_DSC_ON		0x03
+
+/* Data Compression mode */
 #define MCS_PARAM_DATA_COMPRESSION	0x90
  #define MCS_DATA_COMPRESSION_NONE	0x00
  #define MCS_DATA_COMPRESSION_FBC	0x02
  #define MCS_DATA_COMPRESSION_DSC	0x03
 
+/* Display Output control */
 #define MCS_PARAM_DISP_OUTPUT_CTRL	0xb4
  #define MCS_DISP_OUT_SRAM_EN		BIT(0)
  #define MCS_DISP_OUT_VIDEO_MODE	BIT(4)
 
+/* VESA Display Stream Compression setting */
+#define MCS_PARAM_VESA_DSC_SETTING	0xc0
+
 /* SubPixel Rendering (SPR) */
 #define MCS_PARAM_SPR_EN		0xe3
 #define MCS_PARAM_SPR_MODE		0xef
+ #define MCS_SPR_MODE_YYG_RAINBOW_RGB	0x01
 
-#define NT35950_VREG_MAX		6
+#define NT35950_VREG_MAX		4
 
 struct nt35950 {
 	struct drm_panel panel;
+	struct drm_connector *connector;
 	struct mipi_dsi_device *dsi[2];
 	struct regulator_bulk_data vregs[NT35950_VREG_MAX];
 	struct gpio_desc *reset_gpio;
 	const struct nt35950_panel_desc *desc;
 
+	int cur_mode;
+	u8 last_page;
 	bool prepared;
+};
+
+struct nt35950_panel_modes {
+	const struct drm_display_mode mode;
+
+	bool enable_sram;
+	bool is_video_mode;
+	u8 scaler_on;
+	u8 scaler_mode;
+	u8 compression;
+	u8 spr_en;
+	u8 spr_mode;
 };
 
 struct nt35950_panel_desc {
 	const char* model_name;
 	const struct mipi_dsi_device_info dsi_info;
-	const struct drm_display_mode *modes;
-	u8 num_lanes;
+	const struct nt35950_panel_modes *mode_data;
 
-	bool enable_sram;
-	bool is_video_mode;
 	bool is_dual_dsi;
+	u8 num_lanes;
+	u8 num_modes;
 };
 
 static inline struct nt35950 *to_nt35950(struct drm_panel *panel)
@@ -89,9 +118,15 @@ static int nt35950_set_cmd2_page(struct nt35950 *nt, u8 page)
 {
 	const u8 mauc_cmd2_page[] = { MCS_CMD_MAUCCTR, 0x55, 0xaa, 0x52,
 				      0x08, page };
+	int ret;
 
-	return mipi_dsi_dcs_write_buffer(nt->dsi[0], mauc_cmd2_page,
-					 ARRAY_SIZE(mauc_cmd2_page));
+	ret = mipi_dsi_dcs_write_buffer(nt->dsi[0], mauc_cmd2_page,
+					ARRAY_SIZE(mauc_cmd2_page));
+	if (ret < 0)
+		return ret;
+
+	nt->last_page = page;
+	return 0;
 }
 
 /*
@@ -104,15 +139,47 @@ static int nt35950_set_cmd2_page(struct nt35950 *nt, u8 page)
 static int nt35950_set_data_compression(struct nt35950 *nt, u8 comp_mode)
 {
 	u8 cmd_data_compression[] = { MCS_PARAM_DATA_COMPRESSION, comp_mode };
+	u8 cmd_vesa_dsc_on[] = { MCS_PARAM_VESA_DSC_ON, !!comp_mode };
+	u8 cmd_vesa_dsc_setting[] = { MCS_PARAM_VESA_DSC_SETTING, 0x03 };
+	u8 last_page = nt->last_page;
+	int ret;
 
-	return mipi_dsi_dcs_write_buffer(nt->dsi[0], cmd_data_compression,
+	/* Set CMD2 Page 0 if we're not there yet */
+	if (last_page != 0) {
+		ret = nt35950_set_cmd2_page(nt, 0);
+		if (ret < 0)
+			return ret;
+	}
+
+	ret = mipi_dsi_dcs_write_buffer(nt->dsi[0], cmd_data_compression,
 					 ARRAY_SIZE(cmd_data_compression));
+	if (ret < 0)
+		return ret;
+
+	ret = mipi_dsi_dcs_write_buffer(nt->dsi[0], cmd_vesa_dsc_on,
+					ARRAY_SIZE(cmd_vesa_dsc_on));
+	if (ret < 0)
+		return ret;
+
+	/* Set the vesa dsc setting on Page 4 */
+	ret = nt35950_set_cmd2_page(nt, 4);
+	if (ret < 0)
+		return ret;
+
+	/* Display Stream Compression setting, always 0x03 */
+	ret = mipi_dsi_dcs_write_buffer(nt->dsi[0], cmd_vesa_dsc_setting,
+					 ARRAY_SIZE(cmd_vesa_dsc_setting));
+	if (ret < 0)
+		return ret;
+
+	/* Get back to the previously set page */
+	return nt35950_set_cmd2_page(nt, last_page);
 }
 
 /*
  * nt35950_set_scaler - Enable/disable resolution upscaling
  * @nt:        Main driver structure
- * @comp_mode: Compression mode
+ * @scale_up:  Scale up function control
  *
  * Returns: Number of transferred bytes or negative number on error
  */
@@ -123,6 +190,22 @@ static int nt35950_set_scaler(struct nt35950 *nt, u8 scale_up)
 	return mipi_dsi_dcs_write_buffer(nt->dsi[0], cmd_scaler,
 					 ARRAY_SIZE(cmd_scaler));
 }
+
+/*
+ * nt35950_set_scale_mode - Resolution upscaling mode
+ * @nt:   Main driver structure
+ * @mode: Scaler mode
+ *
+ * Returns: Number of transferred bytes or negative number on error
+ */
+static int nt35950_set_scale_mode(struct nt35950 *nt, u8 mode)
+{
+	u8 cmd_scaler[] = { MCS_PARAM_SCALEUP_MODE, mode };
+
+	return mipi_dsi_dcs_write_buffer(nt->dsi[0], cmd_scaler,
+					 ARRAY_SIZE(cmd_scaler));
+}
+
 
 static int nt35950_inject_black_image(struct nt35950 *nt)
 {
@@ -151,8 +234,6 @@ static int nt35950_inject_black_image(struct nt35950 *nt)
 	return mipi_dsi_dcs_write_buffer(nt->dsi[0], cmd_test, test_sz);
 }
 
-static const int nt35950_test_cmd_en[] = { 0xff, 0xaa, 0x55, 0xa5, 0x80 };
-
 /*
  * nt35950_set_dispout - Set Display Output register parameters
  * @nt:    Main driver structure
@@ -162,59 +243,69 @@ static const int nt35950_test_cmd_en[] = { 0xff, 0xaa, 0x55, 0xa5, 0x80 };
 static int nt35950_set_dispout(struct nt35950 *nt)
 {
 	u8 cmd_dispout[] = { MCS_PARAM_DISP_OUTPUT_CTRL, 0x00 };
+	const struct nt35950_panel_modes *mode_data = nt->desc->mode_data;
 
-	if (nt->desc->is_video_mode)
+	if (mode_data[nt->cur_mode].is_video_mode)
 		cmd_dispout[1] |= MCS_DISP_OUT_VIDEO_MODE;
-	if (nt->desc->enable_sram)
+	if (mode_data[nt->cur_mode].enable_sram)
 		cmd_dispout[1] |= MCS_DISP_OUT_SRAM_EN;
 
 	return mipi_dsi_dcs_write_buffer(nt->dsi[0], cmd_dispout,
 					 ARRAY_SIZE(cmd_dispout));
 }
 
+static int nt35950_get_current_mode(struct nt35950 *nt)
+{
+	struct drm_connector *connector = nt->connector;
+	struct drm_crtc_state *crtc_state;
+	int i;
+
+	/* Return the default (first) mode if no info available yet */
+	if (!connector->state || !connector->state->crtc)
+		return 0;
+
+	crtc_state = connector->state->crtc->state;
+
+	for (i = 0; i < nt->desc->num_modes; i++) {
+		if (drm_mode_match(&crtc_state->mode,
+				   &nt->desc->mode_data[i].mode,
+				   DRM_MODE_MATCH_TIMINGS | DRM_MODE_MATCH_CLOCK))
+			return i;
+	}
+
+	return 0;
+}
+
 static int nt35950_on(struct nt35950 *nt)
 {
+	const struct nt35950_panel_modes *mode_data = nt->desc->mode_data;
 	struct mipi_dsi_device *dsi = nt->dsi[0];
 	struct device *dev = &dsi->dev;
 	int ret;
 
+	nt->cur_mode = nt35950_get_current_mode(nt);
 	nt->dsi[0]->mode_flags |= MIPI_DSI_MODE_LPM;
 	nt->dsi[1]->mode_flags |= MIPI_DSI_MODE_LPM;
-
-	ret = nt35950_set_cmd2_page(nt, 7);
-	if (ret < 0)
-		return ret;
-
-	/* Enable SubPixel Rendering */
-	dsi_dcs_write_seq(dsi, MCS_PARAM_SPR_EN, 0x01);
-
-	/* SPR Mode: YYG Rainbow-RGB */
-	dsi_dcs_write_seq(dsi, MCS_PARAM_SPR_MODE, 0x01);
 
 	ret = nt35950_set_cmd2_page(nt, 0);
 	if (ret < 0)
 		return ret;
 
-	/* This is unknown... */
-	dsi_dcs_write_seq(dsi, 0xc9, 0x01);
-
-	ret = nt35950_set_data_compression(nt, MCS_DATA_COMPRESSION_NONE);
+	ret = nt35950_set_data_compression(nt, mode_data[nt->cur_mode].compression);
 	if (ret < 0)
 		return ret;
 
-	ret = nt35950_set_scaler(nt, 1);
+	ret = nt35950_set_scale_mode(nt, mode_data[nt->cur_mode].scaler_mode);
+	if (ret < 0)
+		return ret;
+
+	ret = nt35950_set_scaler(nt, mode_data[nt->cur_mode].scaler_on);
 	if (ret < 0)
 		return ret;
 
 	ret = nt35950_set_dispout(nt);
 	if (ret < 0)
 		return ret;
-
-	/* Frame rate setting for 60hz */
-	dsi_dcs_write_seq(dsi, 0xbd,
-			  0x00, 0xac, 0x0c, 0x0c, 0x00,
-			  0x01, 0x56, 0x09, 0x09, 0x01,
-			  0x01, 0x0c, 0x0c, 0x00, 0xd9);
 
 	ret = mipi_dsi_dcs_set_tear_on(dsi, MIPI_DSI_DCS_TEAR_MODE_VBLANK);
 	if (ret < 0) {
@@ -233,7 +324,19 @@ static int nt35950_on(struct nt35950 *nt)
 	if (ret < 0)
 		return ret;
 
+	/* Unknown command */
 	dsi_dcs_write_seq(dsi, 0xd4, 0x88, 0x88);
+
+	/* CMD2 Page 7 */
+	ret = nt35950_set_cmd2_page(nt, 7);
+	if (ret < 0)
+		return ret;
+
+	/* Enable SubPixel Rendering */
+	dsi_dcs_write_seq(dsi, MCS_PARAM_SPR_EN, 0x01);
+
+	/* SPR Mode: YYG Rainbow-RGB */
+	dsi_dcs_write_seq(dsi, MCS_PARAM_SPR_MODE, MCS_SPR_MODE_YYG_RAINBOW_RGB);
 
 	/* CMD3 */
 	ret = nt35950_inject_black_image(nt);
@@ -264,17 +367,18 @@ static int nt35950_off(struct nt35950 *nt)
 	ret = mipi_dsi_dcs_set_display_off(nt->dsi[0]);
 	if (ret < 0) {
 		dev_err(dev, "Failed to set display off: %d\n", ret);
-		return ret;
+		goto set_lpm;
 	}
 	usleep_range(10000, 11000);
 
 	ret = mipi_dsi_dcs_enter_sleep_mode(nt->dsi[0]);
 	if (ret < 0) {
 		dev_err(dev, "Failed to enter sleep mode: %d\n", ret);
-		return ret;
+		goto set_lpm;
 	}
 	msleep(150);
 
+set_lpm:
 	nt->dsi[0]->mode_flags |= MIPI_DSI_MODE_LPM;
 	nt->dsi[1]->mode_flags |= MIPI_DSI_MODE_LPM;
 
@@ -287,11 +391,9 @@ static int nt35950_sharp_init_vregs(struct nt35950 *nt, struct device *dev)
 	int ret;
 
 	nt->vregs[0].supply = "vddio";
-	nt->vregs[1].supply = "tvddio";
-	nt->vregs[2].supply = "tavdd";
-	nt->vregs[3].supply = "avdd";
-	nt->vregs[4].supply = "avee";
-	nt->vregs[5].supply = "dvdd";
+	nt->vregs[1].supply = "avdd";
+	nt->vregs[2].supply = "avee";
+	nt->vregs[3].supply = "dvdd";
 	ret = devm_regulator_bulk_get(dev, ARRAY_SIZE(nt->vregs),
 				      nt->vregs);
 	if (ret < 0) {
@@ -304,24 +406,16 @@ static int nt35950_sharp_init_vregs(struct nt35950 *nt, struct device *dev)
 	if (!ret)
 		return ret;
 	ret = regulator_is_supported_voltage(nt->vregs[1].consumer,
-					     1750000, 1950000);
-	if (!ret)
-		return ret;
-	ret = regulator_is_supported_voltage(nt->vregs[2].consumer,
-					     2800000, 3300000);
-	if (!ret)
-		return ret;
-	ret = regulator_is_supported_voltage(nt->vregs[3].consumer,
 					     5200000, 5900000);
 	if (!ret)
 		return ret;
 	/* AVEE is negative: -5.90V to -5.20V */
-	ret = regulator_is_supported_voltage(nt->vregs[4].consumer,
+	ret = regulator_is_supported_voltage(nt->vregs[2].consumer,
 					     5200000, 5900000);
 	if (!ret)
 		return ret;
 
-	return regulator_is_supported_voltage(nt->vregs[5].consumer,
+	return regulator_is_supported_voltage(nt->vregs[3].consumer,
 					     1300000, 1400000);
 }
 
@@ -334,35 +428,24 @@ static int nt35950_prepare(struct drm_panel *panel)
 	if (nt->prepared)
 		return 0;
 
-	/* vio */
 	ret = regulator_enable(nt->vregs[0].consumer);
 	if (ret)
 		return ret;
 	usleep_range(2000, 5000);
 
-	/* DVDD */
-	ret = regulator_enable(nt->vregs[5].consumer);
+	ret = regulator_enable(nt->vregs[3].consumer);
 	if (ret)
 		return ret;
 	usleep_range(15000, 18000);
 
-	/* vsp/vsn*/
-	ret = regulator_enable(nt->vregs[3].consumer);
-	if (ret)
-		return ret;
-	ret = regulator_enable(nt->vregs[4].consumer);
-	if (ret)
-		return ret;
-	usleep_range(12000, 13000);
-
-	/* touch - remove me */
 	ret = regulator_enable(nt->vregs[1].consumer);
 	if (ret)
 		return ret;
+
 	ret = regulator_enable(nt->vregs[2].consumer);
 	if (ret)
 		return ret;
-	usleep_range(15000, 16000);
+	usleep_range(12000, 13000);
 
 	nt35950_reset(nt);
 
@@ -397,39 +480,35 @@ static int nt35950_unprepare(struct drm_panel *panel)
 	return 0;
 }
 
-static const struct drm_display_mode nt35950_mode = {
-	/* TODO: Declare 4k */
-	.name = "1080x1920",
-	.clock = (1080 + 400 + 40 + 300) * (1920 + 12 + 2 + 10) * 60 / 1000,
-	.hdisplay = 1080,
-	.hsync_start = 1080 + 400,
-	.hsync_end = 1080 + 400 + 40,
-	.htotal = 1080 + 400 + 40 + 300,
-	.vdisplay = 1920,
-	.vsync_start = 1920 + 12,
-	.vsync_end = 1920 + 12 + 2,
-	.vtotal = 1920 + 12 + 2 + 10,
-	.width_mm = 68,
-	.height_mm = 121,
-};
-
 static int nt35950_get_modes(struct drm_panel *panel,
 			     struct drm_connector *connector)
 {
-	struct drm_display_mode *mode;
+	struct nt35950 *nt = to_nt35950(panel);
+	int i;
 
-	mode = drm_mode_duplicate(connector->dev, &nt35950_mode);
-	if (!mode)
-		return -ENOMEM;
+	for (i = 0; i < nt->desc->num_modes; i++) {
+		struct drm_display_mode *mode;
 
-	drm_mode_set_name(mode);
+		mode = drm_mode_duplicate(connector->dev,
+					  &nt->desc->mode_data[i].mode);
+		if (!mode)
+			return -ENOMEM;
 
-	mode->type = DRM_MODE_TYPE_DRIVER | DRM_MODE_TYPE_PREFERRED;
-	connector->display_info.width_mm = mode->width_mm;
-	connector->display_info.height_mm = mode->height_mm;
-	drm_mode_probed_add(connector, mode);
+		drm_mode_set_name(mode);
 
-	return 1;
+		mode->type |= DRM_MODE_TYPE_DRIVER;
+		if (nt->desc->num_modes == 1)
+			mode->type |= DRM_MODE_TYPE_PREFERRED;
+
+		drm_mode_probed_add(connector, mode);
+	}
+
+	connector->display_info.bpc = 8;
+	connector->display_info.height_mm = nt->desc->mode_data[0].mode.height_mm;
+	connector->display_info.width_mm = nt->desc->mode_data[0].mode.width_mm;
+	nt->connector = connector;
+
+	return nt->desc->num_modes;
 }
 
 static const struct drm_panel_funcs nt35950_panel_funcs = {
@@ -452,8 +531,10 @@ static int nt35950_probe(struct mipi_dsi_device *dsi)
 		return -ENOMEM;
 
 	ret = nt35950_sharp_init_vregs(nt, dev);
-	if (ret && ret != -EPROBE_DEFER)
-		dev_err(dev, "Regulator init failure: %d -- NO FAILURE: DEVELOPMENT MODE\n", ret);
+	if (ret <= 0 && ret != -EPROBE_DEFER) {
+		dev_err(dev, "Regulator init failure.\n");
+		return ret;
+	}
 
 	nt->desc = of_device_get_match_data(dev);
 	if (!nt->desc)
@@ -509,7 +590,7 @@ static int nt35950_probe(struct mipi_dsi_device *dsi)
 					 MIPI_DSI_CLOCK_NON_CONTINUOUS |
 					 MIPI_DSI_MODE_LPM;
 
-		if (nt->desc->is_video_mode)
+		if (nt->desc->mode_data[0].is_video_mode)
 			nt->dsi[i]->mode_flags |= MIPI_DSI_MODE_VIDEO;
 
 		ret = mipi_dsi_attach(nt->dsi[i]);
@@ -548,20 +629,30 @@ static int nt35950_remove(struct mipi_dsi_device *dsi)
 	return 0;
 }
 
-static const struct drm_display_mode sharp_ls055d1sx04_modes = {
-	/* TODO: Declare 2160x3840 mode when FBC/DSC will be working. */
-	.name = "1080x1920",
-	.clock = (1080 + 400 + 40 + 300) * (1920 + 12 + 2 + 10) * 60 / 400,
-	.hdisplay = 1080,
-	.hsync_start = 1080 + 400,
-	.hsync_end = 1080 + 400 + 40,
-	.htotal = 1080 + 400 + 40 + 300,
-	.vdisplay = 1920,
-	.vsync_start = 1920 + 12,
-	.vsync_end = 1920 + 12 + 2,
-	.vtotal = 1920 + 12 + 2 + 10,
-	.width_mm = 68,
-	.height_mm = 121,
+static const struct nt35950_panel_modes sharp_ls055d1sx04_modes[] = {
+	{
+		/* 1920x1080 60Hz no compression */
+		.mode = {
+			.clock = 214537,
+			.hdisplay = 1080,
+			.hsync_start = 1080 + 400,
+			.hsync_end = 1080 + 400 + 40,
+			.htotal = 1080 + 400 + 40 + 300,
+			.vdisplay = 1920,
+			.vsync_start = 1920 + 12,
+			.vsync_end = 1920 + 12 + 2,
+			.vtotal = 1920 + 12 + 2 + 10,
+			.width_mm = 68,
+			.height_mm = 121,
+			.type = DRM_MODE_TYPE_PREFERRED,
+		},
+		.compression = MCS_DATA_COMPRESSION_NONE,
+		.enable_sram = true,
+		.is_video_mode = false,
+		.scaler_on = 1,
+		.scaler_mode = MCS_SCALEUP_DUPLICATE,
+	},
+	/* TODO: Add 2160x3840 60Hz when DSC is supported */
 };
 
 const struct nt35950_panel_desc sharp_ls055d1sx04 = {
@@ -571,11 +662,10 @@ const struct nt35950_panel_desc sharp_ls055d1sx04 = {
 		.channel = 0,
 		.node = NULL,
 	},
-	.modes = &sharp_ls055d1sx04_modes,
-	.num_lanes = 4,
-	.enable_sram = true,
-	.is_video_mode = false,
+	.mode_data = sharp_ls055d1sx04_modes,
+	.num_modes = ARRAY_SIZE(sharp_ls055d1sx04_modes),
 	.is_dual_dsi = true,
+	.num_lanes = 4,
 };
 
 static const struct of_device_id nt35950_of_match[] = {
