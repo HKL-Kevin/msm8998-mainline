@@ -3941,7 +3941,7 @@ static int load_module(struct load_info *info, const char __user *uargs,
 	 */
 	err = elf_validity_check(info);
 	if (err) {
-		pr_err("Module has invalid ELF structures\n");
+		pr_debug("Module has invalid ELF structures\n");
 		goto free_copy;
 	}
 
