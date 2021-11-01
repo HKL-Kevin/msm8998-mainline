@@ -204,6 +204,25 @@
 	bias-disable;
 };
 
+&blsp1_i2c6 {
+	status = "okay";
+
+	nfc: pn544@28 {
+		compatible = "nxp,nxp-nci-i2c";
+		reg = <0x28>;
+		clock-frequency = <400000>;
+
+		interrupt-parent = <&tlmm>;
+		interrupts = <92 IRQ_TYPE_NONE>;
+
+		enable-gpios = <&tlmm 116 0>;
+		firmware-gpios = <&tlmm 93 0>;
+
+		pinctrl-names = "default";
+		pinctrl-0 = <&nfc_int_active &nfc_enable_active>;
+	};
+};
+
 &blsp1_uart3 {
 	status = "okay";
 
@@ -666,6 +685,20 @@
 		pins = "gpio89";
 		function = "gpio";
 		drive-strength = <8>;
+		bias-pull-up;
+	};
+
+	nfc_int_active: nfc_int_active {
+		pins = "gpio92";
+		function = "gpio";
+		drive-strength = <6>;
+		bias-pull-up;
+	};
+
+	nfc_enable_active: nfc_enable_active {
+		pins = "gpio12", "gpio116";
+		function = "gpio";
+		drive-strength = <6>;
 		bias-pull-up;
 	};
 };
