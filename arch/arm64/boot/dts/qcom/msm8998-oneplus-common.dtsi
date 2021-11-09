@@ -695,25 +695,11 @@
 		bias-pull-up;
 	};
 
-	nfc_int_suspend: nfc_int_suspend {
-		pins = "gpio92";
-		function = "gpio";
-		drive-strength = <6>;
-		bias-pull-up;
-	};
-
 	nfc_enable_active: nfc_enable_active {
 		pins = "gpio12", "gpio116";
 		function = "gpio";
 		drive-strength = <6>;
 		bias-pull-up;
-	};
-
-	nfc_enable_suspend: nfc_enable_suspend {
-		pins = "gpio12", "gpio116";
-		function = "gpio";
-		drive-strength = <6>;
-		bias-disable;
 	};
 };
 
