@@ -625,7 +625,7 @@
 
 	zap-shader {
 		memory-region = <&zap_shader_region>; // gpu_mem?
-		firmware-name = "qcom/a540_zap.mbn";
+		firmware-name = "qcom/msm8998/oneplus/a540_zap.mbn";
 	};
 };
 
