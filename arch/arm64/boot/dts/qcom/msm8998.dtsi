@@ -2489,7 +2489,7 @@
 		};
 
 		mdss: mdss@c900000 {
-			compatible = "qcom,mdss-dpu1";
+			compatible = "qcom,msm8998-mdss";
 			reg = <0x0c900000 0x1000>;
 			reg-names = "mdss";
 
