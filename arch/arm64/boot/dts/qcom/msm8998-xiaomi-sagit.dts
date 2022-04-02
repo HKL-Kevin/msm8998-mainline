@@ -1,0 +1,12 @@
+// SPDX-License-Identifier: GPL-2.0
+/* Copyright (c) 2016, The Linux Foundation. All rights reserved. */
+
+/dts-v1/;
+
+#include "msm8998-xiaomi-sagit.dtsi"
+
+/ {
+	model = "Xiaomi Mi 6";
+	compatible = "xiaomi,sagit", "qcom,msm8998";
+	qcom,board-id = <30 0>;
+};
