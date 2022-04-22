@@ -333,7 +333,7 @@
 };
 
 &blsp2_i2c1 {
-	status = "ok";
+	status = "okay";
 	qcom,noise-reject-scl = <3>;
 	qcom,noise-reject-sda = <3>;
 
@@ -465,11 +465,11 @@
 };
 
 &mmcc {
-	status = "ok";
+	status = "okay";
 };
 
 &mmss_smmu {
-	status = "ok";
+	status = "okay";
 };
 
 &pmi8998_haptics {
@@ -604,11 +604,11 @@
 };
 
 &ufshc {
-	status = "ok";
+	status = "okay";
 };
 
 &ufsphy {
-	status = "ok";
+	status = "okay";
 };
 
 &usb3_dwc3 {
