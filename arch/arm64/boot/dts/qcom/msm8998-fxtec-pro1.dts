@@ -464,14 +464,6 @@
 	firmware-name = "qcom/msm8998/fxtec/slpi_v2.mbn";
 };
 
-&mmcc {
-	status = "okay";
-};
-
-&mmss_smmu {
-	status = "okay";
-};
-
 &pmi8998_haptics {
 	status = "okay";
 
