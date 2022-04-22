@@ -3149,7 +3149,6 @@
 			#reset-cells = <1>;
 			#power-domain-cells = <1>;
 			reg = <0xc8c0000 0x40000>;
-			status = "disabled";
 
 			clock-names = "xo",
 				      "gpll0",
@@ -3444,7 +3443,6 @@
 				 <&mmcc BIMC_SMMU_AXI_CLK>;
 			clock-names = "iface-mm", "iface-smmu",
 				      "bus-mm", "bus-smmu";
-			status = "disabled";
 
 			#global-interrupts = <0>;
 			interrupts =
