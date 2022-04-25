@@ -281,7 +281,7 @@
 };
 
 &adreno_gpu {
-	status = "ok";
+	status = "okay";
 
 	zap-shader {
 		memory-region = <&zap_shader_region>;
@@ -290,15 +290,15 @@
 };
 
 &adreno_smmu {
-	status = "ok";
+	status = "okay";
 };
 
 &apc_cprh {
-	status = "ok";
+	status = "okay";
 };
 
 &blsp1_i2c6 {
-	status = "ok";
+	status = "okay";
 
 	gpioext0: gpio-expander@58 {
 		compatible = "awinic,aw9523-pinctrl";
@@ -351,13 +351,13 @@
 };
 
 &cpufreq_hw {
-	status = "ok";
+	status = "okay";
 };
 
 &dsi0 {
 	#address-cells = <1>;
 	#size-cells = <0>;
-	status = "ok";
+	status = "okay";
 
 	vdd-supply = <&vreg_l1a_0p875>;
 	vdda-supply = <&vreg_l2a_1p2>;
@@ -387,7 +387,7 @@
 };
 
 &dsi0_phy {
-	status = "ok";
+	status = "okay";
 };
 
 &dsi0_out {
@@ -396,11 +396,11 @@
 };
 
 &gcc {
-	status = "ok";
+	status = "okay";
 };
 
 &gpucc {
-	status = "ok";
+	status = "okay";
 };
 
 &gpio_keyboard {
@@ -441,11 +441,11 @@
 };
 
 &mdss {
-	status = "ok";
+	status = "okay";
 };
 
 &mdss_mdp {
-	status = "ok";
+	status = "okay";
 };
 
 &remoteproc_adsp {
