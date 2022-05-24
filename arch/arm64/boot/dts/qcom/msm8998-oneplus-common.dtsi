@@ -127,7 +127,24 @@
 
 		hall-sensor {
 			label = "Hall Effect Sensor";
-			gpios = <&tlmm 124 GPIO_ACTIVE_LOW>;
+			gpios = <&tlmm 124 GPIO_ACTIVE_HIGH>, // Hall effect sensor
+
+				<&tlmm 13 GPIO_ACTIVE_HIGH>, // mclk --- IMX398?
+				<&tlmm 30 GPIO_ACTIVE_HIGH>, // reset
+				<&tlmm 7 GPIO_ACTIVE_HIGH>,  // digital enable
+				<&tlmm 27 GPIO_ACTIVE_HIGH>, // ana enable
+				<&tlmm 6 GPIO_ACTIVE_HIGH>,  // AF enable
+
+				<&tlmm 15 GPIO_ACTIVE_HIGH>, // mclk --- IMX376K?
+				<&tlmm 9 GPIO_ACTIVE_HIGH>,  // reset
+				<&tlmm 8 GPIO_ACTIVE_HIGH>,  // digital enable
+				<&tlmm 23 GPIO_ACTIVE_HIGH>, // ana enable
+				<&tlmm 77 GPIO_ACTIVE_HIGH>, // AF enable
+
+				<&tlmm 14 GPIO_ACTIVE_HIGH>, // mclk --- IMX371
+				<&tlmm 28 GPIO_ACTIVE_HIGH>, // reset
+				<&tlmm 78 GPIO_ACTIVE_HIGH>, // vdig enable
+				<&tlmm 85 GPIO_ACTIVE_HIGH>; // vana enable
 			linux,input-type = <EV_SW>;
 			linux,code = <SW_LID>;
 			linux,can-disable;
