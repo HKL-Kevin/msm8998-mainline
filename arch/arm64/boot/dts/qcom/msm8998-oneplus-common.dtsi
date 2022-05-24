@@ -383,6 +383,7 @@
 		vdd_l5-supply = <&vreg_s7a_1p025>;
 		vdd_l6-supply = <&vreg_s5a_2p04>;
 		vdd_l7_l12_l14-supply = <&vreg_s5a_2p04>;
+		vdd_l22-supply = <&vreg_bob>;
 		vdd_l25-supply = <&vreg_bob>;
 		vdd_l28-supply = <&vreg_bob>;
 		vdd_l20_l24-supply = <&vreg_bob>;
@@ -392,6 +393,8 @@
 		vreg_s3a_1p35: s3 {
 			regulator-min-microvolt = <1352000>;
 			regulator-max-microvolt = <1352000>;
+			// HACK: AON for cam_v_custom1 supply
+			regulator-always-on;
 		};
 
 		vreg_s4a_1p8: s4 {
@@ -456,6 +459,13 @@
 			regulator-allow-set-load;
 		};
 
+		vreg_l22a_2p85: l22 { /* Camera */
+			regulator-min-microvolt = <2864000>;
+			regulator-max-microvolt = <2864000>;
+			// HACK: AON for cam_vaf supply (qcom,camera@0)
+			regulator-always-on;
+		};
+
 		vreg_l24a_3p075: l24 { /* QUSB2 PHY */
 			regulator-min-microvolt = <3088000>;
 			regulator-max-microvolt = <3088000>;
@@ -477,7 +487,10 @@
 			regulator-max-microvolt = <3008000>;
 		};
 
-		vreg_lvs1a_1p8: lvs1 { };
+		vreg_lvs1a_1p8: lvs1 { /* Camera */
+			// HACK: AON for cam_cci supply
+			regulator-always-on;
+		};
 		vreg_lvs2a_1p8: lvs2 { };
 	};
 
@@ -489,6 +502,8 @@
 		vreg_bob: bob {
 			regulator-min-microvolt = <3312000>;
 			regulator-max-microvolt = <3600000>;
+			// HACK: AON for cam_vana & cam_vaf supply
+			regulator-always-on;
 		};
 	};
 };
