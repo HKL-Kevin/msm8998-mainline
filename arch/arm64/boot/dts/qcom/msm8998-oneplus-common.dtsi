@@ -508,6 +508,10 @@
 	};
 };
 
+&cci {
+	status = "okay";
+};
+
 &remoteproc_adsp {
 	status = "okay";
 
