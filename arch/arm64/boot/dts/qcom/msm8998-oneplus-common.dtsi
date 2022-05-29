@@ -517,7 +517,8 @@
 		vdd_bob-supply = <&vph_pwr>;
 
 		vreg_bob: bob {
-			regulator-min-microvolt = <3312000>;
+			// HACK: raise min to 3600000 for cam_vana supply
+			regulator-min-microvolt = <3600000>;
 			regulator-max-microvolt = <3600000>;
 			// HACK: AON for cam_vana & cam_vaf supply
 			regulator-always-on;
